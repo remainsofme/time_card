@@ -3,6 +3,9 @@ import datetime
 import sqlite3
 import os
 from openpyxl import Workbook
+import math
+
+#　一か月の勤続状況・支払い金額・保険・合計額を出力yotei 2024/4/17
 
 class Db_setting:
     def __init__(self,database_name):
@@ -38,34 +41,69 @@ class Db_setting:
         conn.close()
         self.table_name=table_name
 
-    def add_record(self,attribute,input):
+    def add_record(self,attribute,input,user):
+        #change to read record,record[2] record[3]
+        #if read record return none, insert id then update name and attribute
+        #if return list, do nothing 
+        #rewrite it today
         conn=sqlite3.connect(self.database_name)
         cursor=conn.cursor()
         id_format='%Y%m%d'
         date=datetime.datetime.now()
         id=date.strftime(id_format)
-        cursor.execute(f'SELECT id FROM {self.table_name};')
-        rows=cursor.fetchall()
-        ids=[row[0] for row in rows]
-        print(ids)
-        if id in ids:
-            cursor.execute(f'''
-                UPDATE {self.table_name} SET {attribute}='{input}' WHERE id={id};
+        record=self.read_record(id,user)
+        if record==None:
+             cursor.execute(f'''
+                INSERT INTO {self.table_name} (id) VALUES ('{id}');
                 ''')
-        elif id not in ids:
-            cursor.execute(f'''
-                INSERT INTO {self.table_name} (id) VALUES ({id});
+             cursor.execute(f'''
+                UPDATE {self.table_name} SET name='{user}' WHERE id='{id}'and name is null;
                 ''')
-            cursor.execute(f'''
-                UPDATE {self.table_name} SET {attribute}='{input}' WHERE id={id};
+             cursor.execute(f'''
+                UPDATE {self.table_name} SET {attribute}='{input}' WHERE id='{id}' and name='{user}';
                 ''')
+        else:
             cursor.execute(f'''
-                UPDATE {self.table_name} SET week_day='{date.weekday()}' WHERE id={id};
+                UPDATE {self.table_name} SET {attribute}='{input}' WHERE id='{id}' and name='{user}';
                 ''')
+        cursor.execute(f'''
+            UPDATE {self.table_name} SET week_day='{date.weekday()}' WHERE id='{id}' and name='{user}';
+            ''')
         conn.commit()
         cursor.close()
         conn.close()
     
+    def fill_record(self,record):
+        print('start to fill in record')
+        rest_time=3600
+        salary_call=Salary_cal(record[2],record[3],rest_time,1188,190000,1.25,1.35,record[11],None)
+        work_time=salary_call.get_working_time()[0]
+        salary=salary_call.calculate_salary()
+        work_time_formated=f'{math.floor(work_time/3600)}時間{round(((work_time % 3600)/60),1)}分'
+        rest_time_formated=f'{math.floor(rest_time/3600)}時間{round(((rest_time % 3600)/60),1)}分'
+        conn=sqlite3.connect(self.database_name)
+        cursor=conn.cursor()
+        cursor.execute(f'''
+        UPDATE {self.table_name}
+        SET rest_time='{rest_time}',
+            work_time='{work_time}',
+            salary='{salary}',
+            start_time_formated='{salary_call.format_time(record[2])}',
+            end_time_formated='{salary_call.format_time(record[3])}',
+            work_time_formated='{work_time_formated}',
+            rest_time_formated='{rest_time_formated}'
+        WHERE id='{record[0]}'and name='{record[1]}';
+        ''')
+        cursor.close()
+        conn.commit()
+        conn.close
+
+
+
+
+
+
+
     def get_ids(self):
         conn=sqlite3.connect(self.database_name)
         cursor=conn.cursor()
@@ -77,11 +115,19 @@ class Db_setting:
         ids=[row[0] for row in rows]
         return ids
     
-    def read_record(self,id):
+    def get_names(self):
+        conn=sqlite3.connect(self.database_name)
+        cursor=conn.cursor()
+        cursor.execute(f'SELECT name FROM {self.table_name};')
+        rows=cursor.fetchall()
+        names=[row[0] for row in rows]
+        return names
+    
+    def read_record(self,id,user):
         conn=sqlite3.connect(self.database_name)
         cursor=conn.cursor()
         cursor.execute(f'''
-            SELECT * FROM {self.table_name} WHERE id={id}
+            SELECT * FROM {self.table_name} WHERE id='{id}' and name='{user}';
             ''')
         conn.commit()
         record=cursor.fetchone()
@@ -89,47 +135,77 @@ class Db_setting:
         conn.close()
         return list(record) if record else None
     
-    def get_data(self,month):
+    def read_all_records(self, user):
+        conn=sqlite3.connect(self.database_name)
+        cursor=conn.cursor()
+        cursor.execute(f'''
+            SELECT * FROM {self.table_name} where name='{user}';
+            ''')
+        conn.commit()
+        records=cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return list(records) if records else None
+    
+    def get_data(self,month,user):
         ids=self.get_ids()
+        names=self.get_names()
+        print(names)
         data=[]
-        data.append([f'{month}月'])
-        data.append([
-            '日付',
+
+        for id in set(ids):
+            for name in set(names):
+                if str(id)[0:6]==month and name==user:
+                    print(f'id is {id}, name is {name}')
+                    record=self.read_record(id,name)
+                    print(f'record is {record}')
+                    if record!=None:
+                        row=[
+                            str(record[0])[0:4]+'年'+str(record[0])[4:6]+'月'+str(record[0])[6:8]+'日',
+                            record[1],
+                            record[11]+1,
+                            record[7],
+                            record[8],
+                            record[10],
+                            record[9],
+                            round(record[6],1)
+                        ]
+                        data.append(row)
+                    else:
+                        pass
+                else:
+                    print('not found')
+        print(data)
+        def to_date_number(data):
+            date_number=int(data[0][0:4])*365+int(data[0][5:7])*30+int(data[0][8:10])
+            return date_number
+
+        sorted_data=sorted(data,key=to_date_number)
+        header=[
+            [f'{month}月'],
+            [
+                '日付',
+            '名前',
             '曜日',
             '出勤時間',
             '退勤時間',
             '休憩時間',
             '労働時間',
             '給料'
-        ])
-
-        for id in ids:
-            if int(str(id)[0:6])==month:
-                record=self.read_record(id)
-                row=[
-                    str(record[0])[0:4]+'年'+str(record[0])[4:6]+'月'+str(record[0])[6:8]+'日',
-                    record[11]+1,
-                    record[7],
-                    record[8],
-                    record[10],
-                    record[9],
-                    round(record[6],1)
-                ]
-                data.append(row)
-            else:
-                print('not found')
-        print(data)
-        return data
+            ]
+        ]
+        sorted_data=header+sorted_data
+        return sorted_data
     
-    def get_start_info(self):
+    def get_start_info(self,user):
         date=datetime.datetime.now()
         id=date.strftime('%Y%m%d')
         print(id)
-        if self.read_record(id)==None:
+        if self.read_record(id,user)==None:
             self.have_start_time=False
             print('no no start time')
         else:
-            start_time=self.read_record(id)[2]
+            start_time=self.read_record(id,user)[2]
             if start_time!=None:
                 self.have_start_time=True
                 print('already checked in')
@@ -141,7 +217,7 @@ class Db_setting:
             
 
 class Salary_cal:
-    def __init__(self,start,end,rest,hour_salary,month_salary,overtime_rate,holiday_rate,weekday):
+    def __init__(self,start,end,rest,hour_salary,month_salary,overtime_rate,holiday_rate,weekday,user):
         self.start=start
         self.end=end
         self.rest=rest
@@ -174,7 +250,9 @@ class Salary_cal:
         formated_time=working_time/3600
         return [working_time,formated_time]
     
-    def calculate_salary(self):
+    def calculate_salary(self): 
+        #　月給制と日給制の違い・祝日を書くべき2024/4/17
+        # 労働時間の計算
         if self.end-self.start<6*3600:
             working_time=self.end-self.start
         else:
@@ -212,8 +290,8 @@ class Write_excel:
 if __name__=="__main__":
     db=Db_setting('ndb.db')
     db.create('time_card')
-    db.add_record('start_time',1)
-    db.add_record('id', 33)
+    db.add_record('start_time',1,'1')
+    db.add_record('id', 33,'user')
     print(db.read_record(1))
  
         

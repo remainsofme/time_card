@@ -1,2 +1,1 @@
 pythonw app.py
-exit
