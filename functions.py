@@ -4,6 +4,8 @@ import sqlite3
 import os
 from openpyxl import Workbook
 import math
+import string
+from win32com import client
 
 #　一か月の勤続状況・支払い金額・保険・合計額を出力yotei 2024/4/17
 
@@ -98,12 +100,6 @@ class Db_setting:
         conn.commit()
         conn.close
 
-
-
-
-
-
-
     def get_ids(self):
         conn=sqlite3.connect(self.database_name)
         cursor=conn.cursor()
@@ -152,6 +148,20 @@ class Db_setting:
         names=self.get_names()
         print(names)
         data=[]
+        work_time_sum=0
+        salary_sum=0
+        def map_weekdays(number):
+            dict_week={
+                0:'月曜日',
+                1:'火曜日',
+                2:'水曜日',
+                3:'木曜日',
+                4:'金曜日',
+                5:'土曜日',
+                6:'日曜日'
+            }
+            week_day_name=dict_week[number]
+            return week_day_name
 
         for id in set(ids):
             for name in set(names):
@@ -163,19 +173,21 @@ class Db_setting:
                         row=[
                             str(record[0])[0:4]+'年'+str(record[0])[4:6]+'月'+str(record[0])[6:8]+'日',
                             record[1],
-                            record[11]+1,
+                            map_weekdays(record[11]),
                             record[7],
                             record[8],
                             record[10],
                             record[9],
-                            round(record[6],1)
+                            f'{round(record[6],1)}円'
                         ]
+                        work_time_sum=work_time_sum+round(record[5]/60,1)
+                        salary_sum=salary_sum+round(record[6],0)
                         data.append(row)
                     else:
                         pass
                 else:
                     print('not found')
-        print(data)
+       
         def to_date_number(data):
             date_number=int(data[0][0:4])*365+int(data[0][5:7])*30+int(data[0][8:10])
             return date_number
@@ -191,10 +203,12 @@ class Db_setting:
             '退勤時間',
             '休憩時間',
             '労働時間',
-            '給料'
+            '給料',
             ]
         ]
-        sorted_data=header+sorted_data
+        summary=[[],['合計労働時間',f'{work_time_sum}分'],['合計給与',f'{salary_sum}円']]
+        sorted_data=header+sorted_data+summary
+        print(sorted_data)
         return sorted_data
     
     def get_start_info(self,user):
@@ -280,7 +294,41 @@ class Write_excel:
         ws=wb.active
         for row in data:
             ws.append(row)
+        columns=string.ascii_uppercase
+        for column in columns:
+            ws.column_dimensions[column].width=len(ws['D3'].value)*1.5
         wb.save(file_name)
+
+    def write_pdf(self,data,excel_name,pdf_name):
+        wb=Workbook()
+        ws=wb.active
+        for row in data:
+            ws.append(row)
+        columns=string.ascii_uppercase
+        for column in columns:
+            ws.column_dimensions[column].width=len(ws['D3'].value)*1.5
+        wb.save(excel_name)
+        time.sleep(1)
+        excel=client.Dispatch('Excel.Application')
+        cwd=os.getcwd()
+        full_path=os.path.join(cwd,excel_name)
+        full_path_pdf=os.path.join(cwd,pdf_name)
+        sheets=excel.Workbooks.open(full_path)
+        work_sheet=sheets.Worksheets[0]
+        work_sheet.PageSetup.Zoom = False
+        work_sheet.PageSetup.FitToPagesWide = 1
+        work_sheet.PageSetup.LeftMargin = 25
+        work_sheet.PageSetup.RightMargin = 25
+        work_sheet.PageSetup.TopMargin = 50
+        work_sheet.PageSetup.BottomMargin = 50
+        work_sheet.ExportAsFixedFormat(0,full_path_pdf)
+        try:
+            os.system('taskkill /f /im excel.exe')
+            sheets.close()
+            print('closed')
+        except Exception:
+            pass
+        os.remove(full_path)
 
 
 

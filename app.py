@@ -2,37 +2,36 @@ import tkinter as tk
 import customtkinter as ck
 from tkinter import messagebox
 from functions import *
+import time
 
-
-#cal salary to correct! 2024/4/16
 class TimeCardApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Time Card")
+        self.root.title("タイムカード")
         
         # Create labels
-        self.label = ck.CTkLabel(root, text="Time Card", font=("Helvetica", 20))
+        self.label = ck.CTkLabel(root, text="タイムカード", font=("Helvetica", 20))
         self.label.pack(pady=10)
-        self.label = ck.CTkLabel(root, text="Name", font=("Helvetica", 10))
+        self.label = ck.CTkLabel(root, text="名前", font=("Helvetica", 10))
         self.label.pack(pady=10)
 
         self.user_combobox=ck.CTkComboBox(root,state='readonly',values=['呉','李','周','王'])
         self.user_combobox.pack(pady=5)
 
 
-        self.start_button =ck.CTkButton(root, text="Start Time Check",command=self.start_time_check)
+        self.start_button =ck.CTkButton(root, text="出勤",command=self.start_time_check)
         self.start_button.pack(pady=5)
 
-        self.end_button = ck.CTkButton(root, text="End Time Check",command=self.end_time_check)
+        self.end_button = ck.CTkButton(root, text="退勤",command=self.end_time_check)
         self.end_button.pack(pady=5)
 
-        self.label = ck.CTkLabel(root, text="year and month", font=("Helvetica", 10))
+        self.label = ck.CTkLabel(root, text="出力したい月を入れてください", font=("Helvetica", 10))
         self.label.pack(pady=10)
 
         self.month_entry=ck.CTkEntry(root)
         self.month_entry.pack(pady=5)
         
-        self.payslip_button = ck.CTkButton(root, text="Create Payslip", command=self.cal_salary)
+        self.payslip_button = ck.CTkButton(root, text="給与明細を出力", command=self.cal_salary)
         self.payslip_button.pack(pady=5)
 
     def choose_user(self):
@@ -70,10 +69,6 @@ class TimeCardApp:
                 messagebox.showinfo('info',f'{self.user}は{end_time[1]}に退勤しました')
 
     def cal_salary(self):
-        #get id from the date entry, get name from name entry, check read record, fill in records user=self.user id=self.month_entry.get()
-        #consider break xls process and refill process
-        #refill process, get all record, use for to loop through them, do the refill
-        #xls process, read date and name from entry, read record, make list, output
         rest_time=3600
         self.choose_user()
         db=Db_setting('ndb.db')
@@ -91,15 +86,11 @@ class TimeCardApp:
                     messagebox.showinfo('info','記録がありませんので、作成できません')
         else:
             messagebox.showinfo('info','記録がありませんので、作成できません')
-
-
+        
         month=self.month_entry.get()
         if month!='':
-            data=db.get_data(month,self.user)
-            excel=Write_excel()
-            excel.create_workbook(data,str(month)+'.xlsx')
             time.sleep(1)
-            os.system('start excel.exe ' +str(month)+'.xlsx')
+            os.system(f'python3 display.py {month} {self.user}')
         else:
             messagebox.showinfo('info','日付を入力してください。例202404')
 
@@ -107,7 +98,8 @@ class TimeCardApp:
 
 if __name__=='__main__':
     root=ck.CTk()
-    root.attributes('-topmost',True)
+    #root.attributes('-topmost',True)
+    root.geometry('350x350')
     app=TimeCardApp(root)
     root.mainloop()
         
