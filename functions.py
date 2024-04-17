@@ -308,7 +308,6 @@ class Write_excel:
         for column in columns:
             ws.column_dimensions[column].width=len(ws['D3'].value)*1.5
         wb.save(excel_name)
-        time.sleep(1)
         excel=client.Dispatch('Excel.Application')
         cwd=os.getcwd()
         full_path=os.path.join(cwd,excel_name)
@@ -328,6 +327,7 @@ class Write_excel:
             print('closed')
         except Exception:
             pass
+        time.sleep(1)
         os.remove(full_path)
 
 

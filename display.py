@@ -51,6 +51,7 @@ class month_record:
         data=self.data
         pdf=Write_excel()
         pdf.write_pdf(data,f'{str(month)}.xlsx',f'{self.user}{str(month)}.pdf')
+        os.system(f'explorer {self.user}{str(month)}.pdf')
 
 
 if __name__=='__main__':
