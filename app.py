@@ -2,7 +2,9 @@ import tkinter as tk
 import customtkinter as ck
 from tkinter import messagebox
 from functions import *
+from display import *
 import time
+import subprocess
 
 class TimeCardApp:
     def __init__(self, root):
@@ -89,8 +91,9 @@ class TimeCardApp:
         
         month=self.month_entry.get()
         if month!='':
-            time.sleep(1)
-            os.system(f'python3 display.py {month} {self.user}')
+            #subprocess.run(['python3','display.py',month,self.user],shell=True)
+            user=self.user
+            month_record.show(month,user)
         else:
             messagebox.showinfo('info','日付を入力してください。例202404')
 

@@ -180,8 +180,8 @@ class Db_setting:
                             record[9],
                             f'{round(record[6],1)}円'
                         ]
-                        work_time_sum=work_time_sum+round(record[5]/60,1)
-                        salary_sum=salary_sum+round(record[6],0)
+                        work_time_sum=work_time_sum+round(record[5]/60)
+                        salary_sum=salary_sum+round(record[6])
                         data.append(row)
                     else:
                         pass

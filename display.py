@@ -53,10 +53,14 @@ class month_record:
         pdf.write_pdf(data,f'{str(month)}.xlsx',f'{self.user}{str(month)}.pdf')
         os.system(f'explorer {self.user}{str(month)}.pdf')
 
+    def show(month,user):
+        root=ck.CTk()
+        root.geometry('1400x600')
+        app=month_record(root,month[0:4],month[4:6],user)
+        root.mainloop()
 
 if __name__=='__main__':
     root=ck.CTk()
     root.geometry('1300x600')
     app=month_record(root,sys.argv[1][0:4],sys.argv[1][4:6],sys.argv[2])
-    
     root.mainloop()
